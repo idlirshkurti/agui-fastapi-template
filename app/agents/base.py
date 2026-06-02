@@ -22,6 +22,6 @@ class BaseAgent(ABC):
         self.history = history
 
     @abstractmethod
-    async def run(self, payload: dict[str, Any]) -> AsyncIterator[str]:
-        """Yield SSE strings."""
+    def run(self, payload: dict[str, Any]) -> AsyncIterator[str]:
+        """Yield SSE strings. Implementations should be async generators."""
         ...

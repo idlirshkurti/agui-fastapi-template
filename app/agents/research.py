@@ -10,7 +10,7 @@ from app.tools.search_tool import SearchTool
 class ResearchAgent(BaseAgent):
     """Specialist agent that runs a web search and streams the results."""
 
-    async def run(self, payload: dict[str, Any]) -> AsyncIterator[str]:  # type: ignore[override]
+    async def run(self, payload: dict[str, Any]) -> AsyncIterator[str]:  # type: ignore[override,misc]
         query: str = payload.get("query", "")
 
         new_state = self.store.state.model_copy(
