@@ -10,7 +10,7 @@ from app.agents.research import ResearchAgent
 class RouterAgent(BaseAgent):
     """Top-level router that delegates to specialist agents."""
 
-    async def run(self, payload: dict[str, Any]) -> AsyncIterator[str]:  # type: ignore[override,misc]
+    async def run(self, payload: dict[str, Any]) -> AsyncIterator[str]:  # type: ignore[override]
         run_id = str(uuid.uuid4())
         query: str = payload.get("query", "")
 
