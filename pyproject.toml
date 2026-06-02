@@ -16,6 +16,12 @@ dependencies = [
     "sse-starlette>=2.1.0",
     "slowapi>=0.1.9",
     "tavily-python>=0.3.3",
+    # Document QA dependencies
+    "faiss-cpu>=1.8.0",
+    "numpy>=1.26.0",
+    "pypdf>=4.2.0",
+    "openai>=1.30.0",
+    "tiktoken>=0.7.0",
 ]
 
 [project.optional-dependencies]

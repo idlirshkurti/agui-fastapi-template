@@ -3,20 +3,36 @@ from __future__ import annotations
 import os
 
 
-def get_tavily_api_key() -> str:
-    """Return the Tavily API key from the environment.
+def _require_env(name: str, hint: str) -> str:
+    """Return the value of *name* from the environment or raise ``ValueError``.
 
-    Raises
-    ------
-    ValueError
-        If ``TAVILY_API_KEY`` is not set, with a message that points the
-        developer to the right place to fix it.
+    Parameters
+    ----------
+    name:
+        The environment variable name.
+    hint:
+        A short human-readable description shown in the error message so
+        developers know exactly what to add to their ``.env`` file.
     """
-    key = os.environ.get("TAVILY_API_KEY", "").strip()
-    if not key:
+    value = os.environ.get(name, "").strip()
+    if not value:
         raise ValueError(
-            "TAVILY_API_KEY is not set. "
-            "Add it to your environment or to a .env file. "
-            "See .env.example for reference."
+            f"{name} is not set. {hint} See .env.example for reference."
         )
-    return key
+    return value
+
+
+def get_tavily_api_key() -> str:
+    """Return the Tavily API key from the environment."""
+    return _require_env(
+        "TAVILY_API_KEY",
+        "Add your Tavily key (https://tavily.com — free tier available).",
+    )
+
+
+def get_openai_api_key() -> str:
+    """Return the OpenAI API key used for document embeddings."""
+    return _require_env(
+        "OPENAI_API_KEY",
+        "Add your OpenAI key (https://platform.openai.com/api-keys).",
+    )
