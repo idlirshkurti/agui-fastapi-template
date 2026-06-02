@@ -2,6 +2,7 @@ from typing import AsyncIterator
 import uuid
 from app.agents.base import BaseAgent
 from app.agents.research import ResearchAgent
+from app.schemas.messages import ConversationHistory
 from app.schemas.state import AppState
 
 
@@ -10,16 +11,26 @@ class RouterAgent(BaseAgent):
 
     async def run(self, payload: dict) -> AsyncIterator[str]:  # type: ignore[override]
         run_id = str(uuid.uuid4())
+        query: str = payload.get("query", "")
+
         yield self.emitter.run_started(run_id)
         yield self.emitter.state_snapshot(self.store.snapshot())
+
+        # Record the incoming user message in history
+        if self.history is not None:
+            self.history.add("user", query)
 
         # Update state: routing
         new_state = self.store.state.model_copy(update={"status": "routing", "current_agent": "router"})
         patch = self.store.apply(new_state)
         yield self.emitter.state_delta(patch)
 
-        # Hand off to research agent
-        specialist = ResearchAgent(emitter=self.emitter, store=self.store)
+        # Hand off to research agent, passing history along
+        specialist = ResearchAgent(
+            emitter=self.emitter,
+            store=self.store,
+            history=self.history,
+        )
         async for event in specialist.run(payload):
             yield event
 

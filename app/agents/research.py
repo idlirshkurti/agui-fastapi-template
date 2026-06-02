@@ -7,7 +7,7 @@ class ResearchAgent(BaseAgent):
     """Specialist agent that runs a search tool and streams results."""
 
     async def run(self, payload: dict) -> AsyncIterator[str]:  # type: ignore[override]
-        query = payload.get("query", "")
+        query: str = payload.get("query", "")
 
         new_state = self.store.state.model_copy(
             update={"status": "researching", "current_agent": "research"}
@@ -18,4 +18,10 @@ class ResearchAgent(BaseAgent):
         async for event in tool.run(query=query):
             yield event
 
-        yield self.emitter.text_message(f"Research complete for query: {query!r}")
+        response = f"Research complete for query: {query!r}"
+
+        # Record the assistant reply in history
+        if self.history is not None:
+            self.history.add("assistant", response)
+
+        yield self.emitter.text_message(response)

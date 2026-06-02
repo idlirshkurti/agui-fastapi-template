@@ -5,6 +5,7 @@ from slowapi.util import get_remote_address
 from app.agui.emitter import AGUIEmitter
 from app.agui.state import StateStore
 from app.agents.router import RouterAgent
+from app.context.session_store import get_or_create
 from app.schemas.state import AppState
 
 router = APIRouter()
@@ -19,9 +20,15 @@ async def awp_endpoint(request: Request, payload: dict) -> StreamingResponse:
     Rate limit: 10 requests per minute per IP (in-memory).
     For multi-replica deployments swap the Limiter storage backend to Redis.
     """
+    session_id: str = payload.get("sessionId") or payload.get("session_id") or ""
+    if not session_id:
+        import uuid
+        session_id = str(uuid.uuid4())
+
+    history = get_or_create(session_id)
     store = StateStore(AppState())
     emitter = AGUIEmitter()
-    agent = RouterAgent(emitter=emitter, store=store)
+    agent = RouterAgent(emitter=emitter, store=store, history=history)
 
     async def event_stream():
         async for event in agent.run(payload):
