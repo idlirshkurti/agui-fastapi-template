@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
+
 from app.agui.emitter import AGUIEmitter
 from app.agui.state import StateStore
 
@@ -12,5 +15,5 @@ class BaseTool(ABC):
         self.store = store
 
     @abstractmethod
-    async def run(self, **kwargs) -> AsyncIterator[str]:
+    async def run(self, **kwargs: Any) -> AsyncIterator[str]:
         ...

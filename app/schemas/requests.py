@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -27,4 +28,4 @@ class AWPRequest(BaseModel):
     session_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     query: str = Field(..., min_length=1, description="User input for this turn")
     thread_id: str | None = Field(default=None, description="Optional AG-UI thread ID")
-    metadata: dict = Field(default_factory=dict, description="Arbitrary pass-through metadata")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary pass-through metadata")

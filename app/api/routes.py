@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import AsyncIterator
 
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
@@ -34,7 +37,7 @@ async def awp_endpoint(request: Request, body: AWPRequest) -> StreamingResponse:
     emitter = AGUIEmitter()
     agent = RouterAgent(emitter=emitter, store=store, history=history)
 
-    async def event_stream() -> object:
+    async def event_stream() -> AsyncIterator[str]:
         async for event in agent.run(body.model_dump()):
             if await request.is_disconnected():
                 logger.info(

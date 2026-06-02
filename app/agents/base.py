@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
+
 from app.agui.emitter import AGUIEmitter
 from app.agui.state import StateStore
 from app.schemas.messages import ConversationHistory
@@ -19,6 +22,6 @@ class BaseAgent(ABC):
         self.history = history
 
     @abstractmethod
-    async def run(self, payload: dict) -> AsyncIterator[str]:
+    async def run(self, payload: dict[str, Any]) -> AsyncIterator[str]:
         """Yield SSE strings."""
         ...

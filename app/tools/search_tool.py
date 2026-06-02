@@ -5,7 +5,7 @@ import uuid
 from typing import Any, AsyncIterator
 
 import httpx
-from tavily import AsyncTavilyClient
+from tavily import AsyncTavilyClient  # type: ignore[import-untyped]
 
 from app.config import get_tavily_api_key
 from app.schemas.search import SearchHit, SearchResult
@@ -56,13 +56,6 @@ class SearchTool(BaseTool):
         All exceptions are caught here so the generator never raises — the
         caller always receives a TOOL_CALL_RESULT event, even on failure.
         """
-        # We need to yield progress events but _search is a plain coroutine,
-        # so we buffer progress SSE strings and yield them from run() after
-        # awaiting. Instead, drive progress from run() directly.
-        # This method is intentionally a coroutine (not an async generator)
-        # so it can be awaited and its return value used cleanly.
-        #
-        # Progress events are emitted by the caller (run()) around this await.
         return await self._execute(query)
 
     async def _execute(self, query: str) -> SearchResult:

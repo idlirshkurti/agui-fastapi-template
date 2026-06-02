@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import pathlib
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import faiss  # type: ignore[import-untyped]
 import numpy as np
@@ -163,7 +163,7 @@ class DocumentStore:
 
         query_vec = await self._embed([query])
         k = min(top_k, len(self._chunks))
-        scores, indices = self._index.search(query_vec, k)  # type: ignore[union-attr]
+        scores, indices = self._index.search(query_vec, k)
 
         passages: list[DocumentPassage] = []
         for score, idx in zip(scores[0], indices[0]):
@@ -194,7 +194,7 @@ class DocumentStore:
             self._client = AsyncOpenAI(api_key=get_openai_api_key())
         return self._client
 
-    async def _embed(self, texts: list[str]) -> np.ndarray:  # type: ignore[type-arg]
+    async def _embed(self, texts: list[str]) -> np.ndarray[Any, np.dtype[np.float32]]:
         """Call the OpenAI embeddings API and return an (N, D) float32 array."""
         response = await self._get_client().embeddings.create(
             model=_EMBEDDING_MODEL,
@@ -208,11 +208,11 @@ class DocumentStore:
         norms = np.where(norms == 0, 1.0, norms)  # avoid divide-by-zero
         return vectors / norms
 
-    def _add_to_index(self, chunks: list[str], embeddings: np.ndarray, source: str) -> None:  # type: ignore[type-arg]
+    def _add_to_index(self, chunks: list[str], embeddings: np.ndarray[Any, np.dtype[np.float32]], source: str) -> None:
         """Initialise the FAISS index on first call, then add new vectors."""
         if self._index is None:
             self._index = faiss.IndexFlatIP(_EMBEDDING_DIM)
-        self._index.add(embeddings)  # type: ignore[union-attr]
+        self._index.add(embeddings)
         for i, chunk in enumerate(chunks):
             self._chunks.append((chunk, source, i))
 
