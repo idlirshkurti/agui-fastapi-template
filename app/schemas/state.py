@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -7,4 +11,4 @@ class AppState(BaseModel):
     status: str = "idle"
     current_agent: str = ""
     progress: int = 0
-    result: dict = Field(default_factory=dict)
+    result: dict[str, Any] = Field(default_factory=dict)
