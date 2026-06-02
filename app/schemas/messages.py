@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -31,7 +31,7 @@ class ConversationHistory(BaseModel):
         """Append a message to the history."""
         self.messages.append(Message(role=role, content=content, **kwargs))
 
-    def trimmed(self, max_messages: int = 20) -> list[dict]:
+    def trimmed(self, max_messages: int = 20) -> list[dict[str, Any]]:
         """Return a token-safe slice of the history for LLM consumption.
 
         Strategy: always preserve the system prompt (first message if
@@ -44,6 +44,6 @@ class ConversationHistory(BaseModel):
         trimmed = system + rest[-max_messages:]
         return [m.model_dump(exclude_none=True) for m in trimmed]
 
-    def to_llm_format(self) -> list[dict]:
+    def to_llm_format(self) -> list[dict[str, Any]]:
         """Return the full history in LLM message-list format (no trimming)."""
         return [m.model_dump(exclude_none=True) for m in self.messages]

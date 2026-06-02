@@ -20,7 +20,7 @@ from app.context.document_store import (
     delete_document_store,
     get_or_create_document_store,
 )
-from app.schemas.documents import DocumentPassage, DocumentQAResult
+from app.schemas.documents import DocumentPassage
 from app.schemas.state import AppState
 from app.tools.document_qa_tool import DocumentQATool
 

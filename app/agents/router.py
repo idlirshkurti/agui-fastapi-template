@@ -1,15 +1,16 @@
-from typing import AsyncIterator
+from __future__ import annotations
+
+from typing import Any, AsyncGenerator
 import uuid
+
 from app.agents.base import BaseAgent
 from app.agents.research import ResearchAgent
-from app.schemas.messages import ConversationHistory
-from app.schemas.state import AppState
 
 
 class RouterAgent(BaseAgent):
     """Top-level router that delegates to specialist agents."""
 
-    async def run(self, payload: dict) -> AsyncIterator[str]:  # type: ignore[override]
+    async def run(self, payload: dict[str, Any]) -> AsyncGenerator[str, None]:
         run_id = str(uuid.uuid4())
         query: str = payload.get("query", "")
 

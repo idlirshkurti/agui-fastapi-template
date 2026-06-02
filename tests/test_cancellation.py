@@ -5,7 +5,7 @@ we test the cancellation logic directly on the stream generator rather
 than through a full HTTP round-trip.
 """
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 from app.agui.emitter import AGUIEmitter
 from app.agui.state import StateStore
 from app.agents.router import RouterAgent

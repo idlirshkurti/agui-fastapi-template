@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import AsyncIterator
+from typing import Any, AsyncGenerator
 
 from app.agents.base import BaseAgent
 from app.schemas.search import SearchResult
@@ -10,7 +10,7 @@ from app.tools.search_tool import SearchTool
 class ResearchAgent(BaseAgent):
     """Specialist agent that runs a web search and streams the results."""
 
-    async def run(self, payload: dict) -> AsyncIterator[str]:  # type: ignore[override]
+    async def run(self, payload: dict[str, Any]) -> AsyncGenerator[str, None]:
         query: str = payload.get("query", "")
 
         new_state = self.store.state.model_copy(
