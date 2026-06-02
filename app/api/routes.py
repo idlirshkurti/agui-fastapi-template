@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from slowapi import Limiter
@@ -8,6 +10,8 @@ from app.agents.router import RouterAgent
 from app.context.session_store import get_or_create
 from app.schemas.requests import AWPRequest
 from app.schemas.state import AppState
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -20,14 +24,24 @@ async def awp_endpoint(request: Request, body: AWPRequest) -> StreamingResponse:
 
     Rate limit: 10 requests per minute per IP (in-memory).
     For multi-replica deployments swap the Limiter storage backend to Redis.
+
+    Cancellation: the generator checks for client disconnection before
+    yielding each event. When the client drops (tab closed, network blip)
+    the loop exits cleanly so no further LLM/tool work is performed.
     """
     history = get_or_create(body.session_id)
     store = StateStore(AppState())
     emitter = AGUIEmitter()
     agent = RouterAgent(emitter=emitter, store=store, history=history)
 
-    async def event_stream():
+    async def event_stream() -> object:
         async for event in agent.run(body.model_dump()):
+            if await request.is_disconnected():
+                logger.info(
+                    "Client disconnected mid-stream, stopping run for session=%s",
+                    body.session_id,
+                )
+                break
             yield event
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
