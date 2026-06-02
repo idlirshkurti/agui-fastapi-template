@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterator
+from typing import Any, AsyncGenerator
 
 from app.agui.emitter import AGUIEmitter
 from app.agui.state import StateStore
@@ -22,6 +22,7 @@ class BaseAgent(ABC):
         self.history = history
 
     @abstractmethod
-    def run(self, payload: dict[str, Any]) -> AsyncIterator[str]:
-        """Yield SSE strings. Implementations should be async generators."""
-        ...
+    async def run(self, payload: dict[str, Any]) -> AsyncGenerator[str, None]:
+        """Yield SSE strings. Implementations must be async generators."""
+        return
+        yield  # pragma: no cover
