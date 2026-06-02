@@ -1,4 +1,3 @@
-import copy
 import jsonpatch
 from app.schemas.state import AppState
 

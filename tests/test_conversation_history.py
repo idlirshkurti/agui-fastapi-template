@@ -1,5 +1,4 @@
-import pytest
-from app.schemas.messages import ConversationHistory, Message
+from app.schemas.messages import ConversationHistory
 from app.context.session_store import get_or_create, get, delete
 
 

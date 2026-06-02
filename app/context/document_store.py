@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import math
 import pathlib
 from typing import Protocol, runtime_checkable
 
