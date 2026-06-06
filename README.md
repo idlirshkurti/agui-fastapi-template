@@ -87,35 +87,6 @@ pip install -e .[dev,tracing]
 pip install -e .[dev,redis,tracing]
 ```
 
-## Run tests
-
-```bash
-pytest tests -v
-```
-
-The full test suite (including Redis and tracing tests) requires all extras:
-
-```bash
-pip install -e .[dev,redis,tracing]
-pytest tests -v
-```
-
-## Environment variables
-
-Copy `.env.example` to `.env` and fill in the values before running.
-
-| Variable | Required for | Where to get it |
-|---|---|---|
-| `TAVILY_API_KEY` | Web search tool | [tavily.com](https://tavily.com) — free tier available |
-| `OPENAI_API_KEY` | Document QA embeddings | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-| `REDIS_URL` | Redis session store | Your Redis instance URL, e.g. `redis://localhost:6379` |
-| `LANGFUSE_SECRET_KEY` | Langfuse tracing | [cloud.langfuse.com](https://cloud.langfuse.com) |
-| `LANGFUSE_PUBLIC_KEY` | Langfuse tracing | [cloud.langfuse.com](https://cloud.langfuse.com) |
-| `LANGFUSE_HOST` | Langfuse tracing (optional) | Self-hosted Langfuse URL; defaults to Langfuse cloud |
-| `TRACING_BACKEND` | Tracing | `noop` (default) or `langfuse` |
-
-The server starts without any of these keys. A `ValueError` is raised only when the relevant tool or backend is actually invoked, so unrelated features work fine without them set.
-
 ## Request schema
 
 `POST /awp` expects a JSON body matching `AWPRequest`:
