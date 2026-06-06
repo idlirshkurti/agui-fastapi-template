@@ -36,7 +36,7 @@ async def _configure_session_store() -> None:
         from app.context.redis_session_store import RedisSessionStore
         store = RedisSessionStore(url=redis_url)
         # Smoke-test the connection.
-        import redis.asyncio as aioredis
+        import redis.asyncio as aioredis  # type: ignore[import-not-found]
         client = aioredis.from_url(redis_url)
         await client.ping()
         await client.aclose()

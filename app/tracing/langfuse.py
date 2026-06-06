@@ -25,7 +25,7 @@ class LangfuseTracer(Tracer):
 
     def __init__(self) -> None:
         try:
-            from langfuse import Langfuse  # type: ignore[import-untyped]
+            from langfuse import Langfuse  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
                 "langfuse package is required for LangfuseTracer. "
@@ -95,7 +95,7 @@ class LangfuseTracer(Tracer):
             if span.parent_id is None:
                 # Root trace finalisation — update the trace-level record.
                 trace.update(**update_kwargs)
-                # Clean up so we don't leak memory across runs.
+                # Clean up so we don’t leak memory across runs.
                 self._traces.pop(span.trace_id, None)
         except Exception as exc:  # noqa: BLE001
             logger.error("LangfuseTracer._on_end failed: %s", exc)

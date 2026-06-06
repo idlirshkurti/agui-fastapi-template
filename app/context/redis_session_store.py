@@ -51,7 +51,7 @@ class RedisSessionStore:
         max_messages: int = _MAX_STORED_MESSAGES,
         ttl_seconds: int = _TTL_SECONDS,
     ) -> None:
-        import redis.asyncio as aioredis  # lazy import — only needed when Redis is used
+        import redis.asyncio as aioredis  # type: ignore[import-not-found]
 
         self._client: Any = aioredis.from_url(url, decode_responses=True)
         self._max_messages = max_messages

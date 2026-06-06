@@ -1,3 +1,4 @@
-from app.guardrails.output_filter import FilterResult, OutputFilterGuardrail
+from app.guardrails.base import FilterResult
+from app.guardrails.output_filter import OutputFilterGuardrail
 
 __all__ = ["FilterResult", "OutputFilterGuardrail"]

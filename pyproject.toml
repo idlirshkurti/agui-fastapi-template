@@ -28,6 +28,9 @@ dependencies = [
 tracing = [
     "langfuse>=2.0.0",
 ]
+redis = [
+    "redis[asyncio]>=5.0.0",
+]
 dev = [
     "pytest>=8.2.0",
     "pytest-asyncio>=0.23.0",
@@ -46,6 +49,12 @@ line-length = 100
 [tool.mypy]
 strict = true
 warn_unused_ignores = false
+
+# Optional dependencies that are not installed in the base dev environment.
+# Mypy is told to ignore missing imports for these modules rather than failing.
+[[tool.mypy.overrides]]
+module = ["redis", "redis.*", "langfuse", "langfuse.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
