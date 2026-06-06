@@ -13,7 +13,6 @@ from app.tools.base import BaseTool
 
 logger = logging.getLogger(__name__)
 
-# Maximum number of search results to request from Tavily.
 _MAX_RESULTS = 5
 
 
@@ -41,7 +40,14 @@ class SearchTool(BaseTool):
         tool_call_id = str(uuid.uuid4())
         yield self.emitter.tool_call_start(tool_call_id, "search")
 
-        result = await self._search(tool_call_id, query)
+        async with self.tracer.span(
+            "tool:search",
+            trace_id=self.trace_id,
+            parent_id=self.parent_span_id,
+            metadata={"query": query, "tool_call_id": tool_call_id},
+        ) as tool_span:
+            result = await self._execute(query)
+            tool_span.metadata["result_count"] = result.total
 
         yield self.emitter.tool_call_result(tool_call_id, result.model_dump())
 
@@ -49,14 +55,6 @@ class SearchTool(BaseTool):
             update={"progress": 100, "result": result.model_dump()}
         )
         yield self.emitter.state_delta(self.store.apply(new_state))
-
-    async def _search(self, tool_call_id: str, query: str) -> SearchResult:
-        """Perform the Tavily search and return a structured result.
-
-        All exceptions are caught here so the generator never raises — the
-        caller always receives a TOOL_CALL_RESULT event, even on failure.
-        """
-        return await self._execute(query)
 
     async def _execute(self, query: str) -> SearchResult:
         """Call the Tavily API and parse the response into a SearchResult."""
@@ -92,7 +90,6 @@ class SearchTool(BaseTool):
 
     @staticmethod
     def _parse(query: str, raw: dict[str, Any]) -> SearchResult:
-        """Convert the raw Tavily response dict into a typed SearchResult."""
         hits: list[SearchHit] = []
         for item in raw.get("results", []):
             try:
