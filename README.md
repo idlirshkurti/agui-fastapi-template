@@ -6,13 +6,14 @@ A production-ready Python template for building AG-UI-compatible agent backends 
 - Tool execution events with incremental progress bars
 - Shared state snapshots and JSON Patch deltas
 - Multi-turn conversation history with sliding-window context trimming
-- Session management (in-memory, Redis-ready)
+- Session management (in-memory or Redis-backed)
 - Modular agent composition ready for multi-agent handoffs
 - Typed Pydantic request/response models
 - Rate limiting per IP (slowapi)
 - Graceful SSE cancellation on client disconnect
 - Web search via Tavily
 - Document QA with an in-memory FAISS vector store
+- Optional tracing via Langfuse
 - Tests and CI
 
 ## Architecture
@@ -26,7 +27,8 @@ app/
   agents/router.py             # Top-level router agent
   agents/research.py           # Example specialist agent
   config.py                    # Environment variable helpers (API keys)
-  context/session_store.py     # In-memory session store (swap to Redis for prod)
+  context/session_store.py     # Session store (in-memory default; Redis-backed optional)
+  context/redis_session_store.py  # Redis-backed session store implementation
   context/document_store.py    # Per-session FAISS vector store + loader protocol
   schemas/messages.py          # Message + ConversationHistory models
   schemas/requests.py          # AWPRequest — validated /awp request body
@@ -36,6 +38,10 @@ app/
   tools/base.py                # BaseTool abstraction
   tools/search_tool.py         # Web search via Tavily (async, typed)
   tools/document_qa_tool.py    # Retrieval-augmented QA over ingested documents
+  tracing/base.py              # Tracer + Span abstractions
+  tracing/noop.py              # No-op tracer (default, zero overhead)
+  tracing/langfuse.py          # Langfuse tracer backend
+  tracing/provider.py          # get_tracer() factory (reads TRACING_BACKEND env var)
   main.py                      # FastAPI app entrypoint
 tests/
   test_routes.py               # /awp endpoint integration tests
@@ -43,6 +49,10 @@ tests/
   test_cancellation.py         # SSE disconnect cancellation tests
   test_search_tool.py          # SearchTool unit tests (mocked Tavily)
   test_document_qa_tool.py     # DocumentStore + DocumentQATool unit tests
+  test_redis_session_store.py  # RedisSessionStore unit tests (mocked Redis)
+  test_tracing.py              # Tracer unit tests
+  test_session_store.py        # Session store protocol + backend-switching tests
+  test_output_filter.py        # PII / toxicity output filter tests
 ```
 
 ## Run locally
@@ -50,16 +60,43 @@ tests/
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev]
+pip install -e .[dev]          # core deps + dev/test tools
 cp .env.example .env          # fill in TAVILY_API_KEY and OPENAI_API_KEY
 uvicorn app.main:app --reload
 ```
 
 The AG-UI endpoint is available at `POST /awp`. Interactive API docs at `http://localhost:8000/docs`.
 
+### Optional extras
+
+Install additional extras depending on which features you want to use:
+
+| Extra | Installs | When to use |
+|---|---|---|
+| `redis` | `redis[asyncio]>=5.0` | Redis-backed session store (`RedisSessionStore`) |
+| `tracing` | `langfuse>=2.0` | Langfuse tracing backend |
+
+```bash
+# Redis session store only
+pip install -e .[dev,redis]
+
+# Langfuse tracing only
+pip install -e .[dev,tracing]
+
+# Both
+pip install -e .[dev,redis,tracing]
+```
+
 ## Run tests
 
 ```bash
+pytest tests -v
+```
+
+The full test suite (including Redis and tracing tests) requires all extras:
+
+```bash
+pip install -e .[dev,redis,tracing]
 pytest tests -v
 ```
 
@@ -71,8 +108,13 @@ Copy `.env.example` to `.env` and fill in the values before running.
 |---|---|---|
 | `TAVILY_API_KEY` | Web search tool | [tavily.com](https://tavily.com) — free tier available |
 | `OPENAI_API_KEY` | Document QA embeddings | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| `REDIS_URL` | Redis session store | Your Redis instance URL, e.g. `redis://localhost:6379` |
+| `LANGFUSE_SECRET_KEY` | Langfuse tracing | [cloud.langfuse.com](https://cloud.langfuse.com) |
+| `LANGFUSE_PUBLIC_KEY` | Langfuse tracing | [cloud.langfuse.com](https://cloud.langfuse.com) |
+| `LANGFUSE_HOST` | Langfuse tracing (optional) | Self-hosted Langfuse URL; defaults to Langfuse cloud |
+| `TRACING_BACKEND` | Tracing | `noop` (default) or `langfuse` |
 
-The server starts without these keys. A `ValueError` is raised only when the relevant tool is actually invoked, so unrelated features work fine without them set.
+The server starts without any of these keys. A `ValueError` is raised only when the relevant tool or backend is actually invoked, so unrelated features work fine without them set.
 
 ## Request schema
 
@@ -109,7 +151,22 @@ Turn 2: POST /awp  { "session_id": "abc", "query": "Follow up question" }
 
 History is trimmed to the last 20 non-system messages before being passed to the LLM (configurable via `ConversationHistory.trimmed(max_messages=N)`). The system prompt is always preserved.
 
-> **Storage note:** History is held in-memory by default. It is lost on process restart and is not shared across multiple workers or replicas. For production multi-replica deployments, replace `InMemorySessionStore` with a Redis-backed implementation — the `get_or_create / get / delete` interface stays the same.
+## Session storage
+
+By default, session history is held **in-memory** via `InMemorySessionStore`. It is lost on process restart and is not shared across multiple workers or replicas.
+
+For production multi-replica deployments, use the included **`RedisSessionStore`**:
+
+```python
+from app.context.redis_session_store import RedisSessionStore
+from app.context import session_store
+
+session_store.set_backend(RedisSessionStore(url="redis://localhost:6379"))
+```
+
+Requires the `redis` extra: `pip install -e .[redis]`.
+
+The `get_or_create / get / delete` interface is identical between backends, so switching is a one-line change with no impact on agents or tools.
 
 ## Rate limiting
 
@@ -173,6 +230,39 @@ class DocxLoader:
 _LOADERS[".docx"] = DocxLoader()
 ```
 
+## Tracing
+
+The template ships with a lightweight tracing abstraction (`app/tracing/`) that instruments agent spans with zero overhead by default.
+
+**Backends:**
+
+| `TRACING_BACKEND` | Behaviour |
+|---|---|
+| `noop` (default) | No-op — zero overhead, nothing is sent anywhere |
+| `langfuse` | Sends spans to [Langfuse](https://cloud.langfuse.com); requires `LANGFUSE_SECRET_KEY` + `LANGFUSE_PUBLIC_KEY` |
+
+To enable Langfuse tracing:
+
+```bash
+pip install -e .[tracing]
+export TRACING_BACKEND=langfuse
+export LANGFUSE_SECRET_KEY=sk-...
+export LANGFUSE_PUBLIC_KEY=pk-...
+```
+
+If the `langfuse` package is missing or misconfigured, the server automatically falls back to the no-op tracer — it never fails to start due to tracing misconfiguration.
+
+**Instrumenting an agent:**
+
+```python
+from app.tracing.provider import get_tracer
+
+tracer = get_tracer()
+async with tracer.span("router", trace_id=session_id, metadata={"query": query}):
+    # agent work here
+    ...
+```
+
 ## Example event flow
 
 1. Request arrives with `query` and optional `session_id`.
@@ -190,5 +280,5 @@ _LOADERS[".docx"] = DocxLoader()
 - **Add a tool** — subclass `BaseTool` in `app/tools/`, implement `run()`, and call it from an agent.
 - **Add a document format** — implement the `DocumentLoader` protocol and add an entry to `_LOADERS` in `app/context/document_store.py`.
 - **Extend shared state** — add fields to `AppState` in `app/schemas/state.py`.
-- **Persist history** — replace the in-memory dict in `app/context/session_store.py` with a Redis or database backend.
-- **Add tracing** — instrument `RouterAgent.run()` with Langfuse or OpenTelemetry spans.
+- **Persist history** — swap `InMemorySessionStore` for `RedisSessionStore` via `session_store.set_backend()`.
+- **Add tracing** — set `TRACING_BACKEND=langfuse` and instrument agents with `get_tracer().span(...)`.
