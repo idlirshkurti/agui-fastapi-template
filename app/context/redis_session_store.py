@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from typing import Any
 
 from app.schemas.messages import ConversationHistory, Message
