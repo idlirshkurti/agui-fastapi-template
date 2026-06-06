@@ -140,19 +140,12 @@ def test_get_tracer_unknown_backend_falls_back_to_noop(monkeypatch: pytest.Monke
 
 def test_get_tracer_langfuse_import_error_falls_back(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TRACING_BACKEND", "langfuse")
-    with patch("app.tracing.provider.LangfuseTracer", side_effect=ImportError("no langfuse")):
-        # Patch inside provider module
-        import app.tracing.provider as pmod
-        original = pmod.__dict__.get("LangfuseTracer")
-        try:
-            pmod.__dict__["LangfuseTracer"] = MagicMock(side_effect=ImportError("no langfuse"))
-            tracer = get_tracer()
-            assert isinstance(tracer, NoopTracer)
-        finally:
-            if original is not None:
-                pmod.__dict__["LangfuseTracer"] = original
-            else:
-                del pmod.__dict__["LangfuseTracer"]
+    # provider.py does `from app.tracing.langfuse import LangfuseTracer` lazily
+    # inside get_tracer(). Patch the name in the langfuse module so the import
+    # succeeds but instantiation raises ImportError, triggering the fallback.
+    with patch("app.tracing.langfuse.LangfuseTracer", side_effect=ImportError("no langfuse")):
+        tracer = get_tracer()
+    assert isinstance(tracer, NoopTracer)
 
 
 # ---------------------------------------------------------------------------
@@ -168,14 +161,15 @@ async def test_langfuse_tracer_root_span(monkeypatch: pytest.MonkeyPatch) -> Non
     mock_langfuse = MagicMock()
     mock_langfuse.trace.return_value = mock_trace
 
-    with patch("app.tracing.langfuse.Langfuse", return_value=mock_langfuse):
-        from app.tracing.langfuse import LangfuseTracer
-        tracer = LangfuseTracer.__new__(LangfuseTracer)
-        tracer._client = mock_langfuse
-        tracer._traces = {}
+    # Bypass __init__ (which imports langfuse at call-time) and inject the
+    # mock client directly — same pattern as test_langfuse_tracer_flush.
+    from app.tracing.langfuse import LangfuseTracer
+    tracer = LangfuseTracer.__new__(LangfuseTracer)
+    tracer._client = mock_langfuse
+    tracer._traces = {}
 
-        async with tracer.span("router", trace_id="run-1", metadata={"session_id": "s1"}):
-            pass
+    async with tracer.span("router", trace_id="run-1", metadata={"session_id": "s1"}):
+        pass
 
     mock_langfuse.trace.assert_called_once()
     call_kwargs = mock_langfuse.trace.call_args
@@ -201,7 +195,7 @@ async def test_langfuse_tracer_missing_key_raises(monkeypatch: pytest.MonkeyPatc
     monkeypatch.delenv("LANGFUSE_SECRET_KEY", raising=False)
     monkeypatch.delenv("LANGFUSE_PUBLIC_KEY", raising=False)
 
-    with patch("app.tracing.langfuse.Langfuse"):
-        from app.tracing.langfuse import _require_env
-        with pytest.raises(ValueError, match="LANGFUSE_SECRET_KEY"):
-            _require_env("LANGFUSE_SECRET_KEY")
+    # _require_env() raises ValueError when the env var is absent — no mocking needed.
+    from app.tracing.langfuse import _require_env
+    with pytest.raises(ValueError, match="LANGFUSE_SECRET_KEY"):
+        _require_env("LANGFUSE_SECRET_KEY")
